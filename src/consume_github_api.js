@@ -3,47 +3,83 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const axios = require("axios");
 const GITHUB_API_URL = "https://api.github.com";
 
-function getHeaders() {
-  const token = process.env.GITHUB_TOKEN;
-  return token ? { Authorization: `token ${token}` } : {};
+function getHeaders(token) {
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "User-Agent": "consume-github-api", 
+      }
+    : {};
 }
 
-async function validateOwner(owner) {
+async function validateOwner(owner, token) {
+  console.log("Validating Owner:", owner, "Token:", token);
   try {
     const url = `${GITHUB_API_URL}/users/${owner}`;
-    await axios.head(url, { headers: getHeaders() });
+    const headers = getHeaders(token);
+    console.log("Axios Config:", { url, headers });
+    await axios.get(url, { headers });
   } catch (error) {
+    console.error("validateOwner Error:", error); // Log the full error
+    if (error.response) {
+      console.error("Response Data:", error.response.data); // Log the response data
+      console.error("Response Status:", error.response.status); // Log the response status
+      console.error("Response Headers:", error.response.headers); // Log the response headers
+    }
     if (error.response && error.response.status === 404) {
       throw new Error(`User ${owner} not found.`);
     } else {
       throw new Error(
-        `An error occurred while validating owner: ${error.message || "Unknown error"}`
+        `An error occurred while validating owner: ${
+          error.message || "Unknown error"
+        }`
       );
     }
   }
 }
 
-async function validateRepo(owner, repo) {
+async function validateRepo(owner, repo, token) {
+  console.log("Validating Repo:", owner, repo, "Token:", token);
   try {
     const url = `${GITHUB_API_URL}/repos/${owner}/${repo}`;
-    await axios.head(url, { headers: getHeaders() });
+    const headers = getHeaders(token);
+    console.log("Axios Config:", { url, headers });
+    await axios.get(url, { headers });
   } catch (error) {
+    console.error("validateRepo Error:", error); // Log the full error
+    if (error.response) {
+      console.error("Response Data:", error.response.data); // Log the response data
+      console.error("Response Status:", error.response.status); // Log the response status
+      console.error("Response Headers:", error.response.headers); // Log the response headers
+    }
     if (error.response && error.response.status === 404) {
       throw new Error(`Repo ${repo} not found.`);
     } else {
       throw new Error(
-        `An error occurred while validating repository: ${error.message || "Unknown error"}`
+        `An error occurred while validating repository: ${
+          error.message || "Unknown error"
+        }`
       );
     }
   }
 }
 
-async function validateInputs({ owner, repo }) {
-  await Promise.all([validateOwner(owner), validateRepo(owner, repo)]);
+async function validateInputs({ owner, repo, token }) {
+  await Promise.all([
+    validateOwner(owner, token),
+    validateRepo(owner, repo, token),
+  ]);
 }
 
-async function fetchPullRequests(owner, repo) {
-  await validateInputs({ owner, repo });
+async function fetchPullRequests(owner, repo, token) {
+  try {
+    await validateInputs({ owner, repo, token });
+  } catch (validationError) {
+    // Re-throw the validation error to prevent fetching PRs with invalid inputs
+    throw validationError;
+  }
+
   let allPullRequests = [];
   let page = 1;
   let hasMorePages = true;
@@ -59,7 +95,7 @@ async function fetchPullRequests(owner, repo) {
             per_page: 100,
             page,
           },
-          headers: getHeaders(),
+          headers: getHeaders(token),
         }
       );
       allPullRequests = allPullRequests.concat(response.data);
@@ -68,7 +104,9 @@ async function fetchPullRequests(owner, repo) {
       page++;
     } catch (error) {
       throw new Error(
-        `An error occurred while fetching pull requests: ${error.message || "Unknown error"}`
+        `An error occurred while fetching pull requests: ${
+          error.message || "Unknown error"
+        }`
       );
     }
   }
@@ -105,20 +143,24 @@ function formatPullRequests(filteredPRs) {
   }));
 }
 
-async function getPullRequests({ owner, repo, startDate, endDate }) {
-  const allPullRequests = await fetchPullRequests(owner, repo);
-  const filteredPRs = filterPullRequests(allPullRequests, startDate, endDate);
-  return formatPullRequests(filteredPRs);
+async function getPullRequests({ owner, repo, startDate, endDate, token }) {
+  try {
+    const allPullRequests = await fetchPullRequests(owner, repo, token);
+    const filteredPRs = filterPullRequests(allPullRequests, startDate, endDate);
+    return formatPullRequests(filteredPRs);
+  } catch (error) {
+    throw error;
+  }
 }
 
 module.exports = {
   getPullRequests,
 };
-
-
-/* getPullRequests({
+/*
+getPullRequests({
   owner: "Umuzi-org",
   repo: "ACN-syllabus",
   startDate: "2022-03-01",
   endDate: "2022-03-10",
+  token: process.env.GITHUB_TOKEN
 }).then((res) => console.log(res));*/

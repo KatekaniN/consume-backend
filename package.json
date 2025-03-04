@@ -4,8 +4,7 @@
   "description": "Consume Github API (186) For raw project instructions see: http://syllabus.africacode.net/projects/github-api-consume/part1/",
   "main": "src/consume_github_api.js",
   "scripts": {
-    "test": "jasmine",
-    "start": "node server.js"
+    "test": "jasmine"
   },
   "keywords": [
     "Github",

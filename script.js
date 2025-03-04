@@ -13,17 +13,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const ownerNameElement = document.querySelector(".owner-name");
   const repoNameElement = document.querySelector(".repo-name");
 
-  const stateFilterButtons = document.querySelectorAll(".filter-button"); // Get all state filter buttons
-  const filterStartDateInput = document.getElementById("filterStartDate"); // Get the filter start date input
-  const filterEndDateInput = document.getElementById("filterEndDate"); // Get the filter end date input
-  const applyDateFilterButton = document.getElementById("applyDateFilter"); // Get the apply date filter button
+  const stateFilterButtons = document.querySelectorAll(".filter-button");
+  const filterStartDateInput = document.getElementById("filterStartDate");
+  const filterEndDateInput = document.getElementById("filterEndDate");
+  const applyDateFilterButton = document.getElementById("applyDateFilter");
+  const githubTokenInput = document.getElementById("githubToken");
 
   let allPullRequests = [];
   let currentPage = 1;
   const itemsPerPage = 10;
-  let currentStateFilter = "all"; // Store the current state filter
-  let currentFilterStartDate = null; // Store the current filter start date
-  let currentFilterEndDate = null; // Store the current filter end date
+  let currentStateFilter = "all";
+  let currentFilterStartDate = null;
+  let currentFilterEndDate = null;
 
   function updateRepoHeader() {
     ownerNameElement.textContent = ownerInput.value || "YourOrg";
@@ -33,16 +34,13 @@ document.addEventListener("DOMContentLoaded", () => {
   ownerInput.addEventListener("input", updateRepoHeader);
   repoInput.addEventListener("input", updateRepoHeader);
 
-  // Function to filter pull requests based on state and date
   function filterPullRequests() {
     let filteredPRs = allPullRequests;
 
-    // Apply state filter
     if (currentStateFilter !== "all") {
       filteredPRs = filteredPRs.filter((pr) => pr.state === currentStateFilter);
     }
 
-    // Apply date filter
     if (currentFilterStartDate && currentFilterEndDate) {
       const startDateObj = new Date(currentFilterStartDate);
       const endDateObj = new Date(currentFilterEndDate);
@@ -55,31 +53,26 @@ document.addEventListener("DOMContentLoaded", () => {
     return filteredPRs;
   }
 
-  // Function to display the filtered and paginated pull requests
   function displayFilteredAndPaginatedPullRequests() {
     const filteredPRs = filterPullRequests();
-    currentPage = 1; // Reset to the first page after filtering
+    currentPage = 1;
     displayPaginatedPullRequests(filteredPRs, currentPage, itemsPerPage);
     setupPagination(filteredPRs, itemsPerPage);
   }
 
-  // Add event listeners to the state filter buttons
   stateFilterButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      // Remove active class from all buttons
       stateFilterButtons.forEach((btn) => btn.classList.remove("active"));
-      // Add active class to the clicked button
       button.classList.add("active");
-      currentStateFilter = button.dataset.state; // Update the current state filter
-      displayFilteredAndPaginatedPullRequests(); // Display the filtered results
+      currentStateFilter = button.dataset.state;
+      displayFilteredAndPaginatedPullRequests();
     });
   });
 
-  // Add event listener to the apply date filter button
   applyDateFilterButton.addEventListener("click", () => {
-    currentFilterStartDate = filterStartDateInput.value; // Update the current filter start date
-    currentFilterEndDate = filterEndDateInput.value; // Update the current filter end date
-    displayFilteredAndPaginatedPullRequests(); // Display the filtered results
+    currentFilterStartDate = filterStartDateInput.value;
+    currentFilterEndDate = filterEndDateInput.value;
+    displayFilteredAndPaginatedPullRequests();
   });
 
   fetchButton.addEventListener("click", async () => {
@@ -87,9 +80,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const repo = repoInput.value;
     const startDate = startDateInput.value;
     const endDate = endDateInput.value;
+    const githubToken = githubTokenInput.value;
 
-    if (!owner || !repo || !startDate || !endDate) {
-      displayError("Please fill in all fields.");
+    if (!owner || !repo || !startDate || !endDate || !githubToken) {
+      displayError("Please fill in all fields, including the GitHub token.");
       return;
     }
 
@@ -105,18 +99,19 @@ document.addEventListener("DOMContentLoaded", () => {
         owner,
         repo,
         startDate,
-        endDate
+        endDate,
+        encodeURIComponent(githubToken)
       );
-      currentStateFilter = "all"; // Reset the state filter to 'all'
-      stateFilterButtons.forEach((btn) => btn.classList.remove("active")); // Remove active class from all buttons
+      currentStateFilter = "all";
+      stateFilterButtons.forEach((btn) => btn.classList.remove("active"));
       document
         .querySelector('.filter-button[data-state="all"]')
-        .classList.add("active"); // Add active class to the 'All' button
-      currentFilterStartDate = null; // Reset the filter start date
-      currentFilterEndDate = null; // Reset the filter end date
-      filterStartDateInput.value = ""; // Clear the filter start date input
-      filterEndDateInput.value = ""; // Clear the filter end date input
-      displayFilteredAndPaginatedPullRequests(); // Display the filtered results
+        .classList.add("active");
+      currentFilterStartDate = null;
+      currentFilterEndDate = null;
+      filterStartDateInput.value = "";
+      filterEndDateInput.value = "";
+      displayFilteredAndPaginatedPullRequests();
     } catch (error) {
       displayError(error.message);
     } finally {
@@ -124,8 +119,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  async function fetchPullRequestsFromAPI(owner, repo, startDate, endDate) {
-    const apiUrl = `http://localhost:3000/pulls?owner=${owner}&repo=${repo}&startDate=${startDate}&endDate=${endDate}`;
+  async function fetchPullRequestsFromAPI(
+    owner,
+    repo,
+    startDate,
+    endDate,
+    githubToken
+  ) {
+  
+    console.log("Token Data Type:", typeof githubToken);
+    console.log("Token being sent:", githubToken);
+    const encodedToken = encodeURIComponent(githubToken); 
+    const apiUrl = `http://localhost:3000/pulls?owner=${owner}&repo=${repo}&startDate=${startDate}&endDate=${endDate}&token=${encodedToken}`;
 
     try {
       const response = await fetch(apiUrl);
@@ -158,11 +163,11 @@ document.addEventListener("DOMContentLoaded", () => {
     paginatedPRs.forEach((pr) => {
       const li = document.createElement("li");
       li.innerHTML = `
-                <strong>${pr.title}</strong><br>
-                User: ${pr.user}<br>
-                State: ${pr.state}<br>
-                Created: ${pr.created_at}
-            `;
+              <strong>${pr.title}</strong><br>
+              User: ${pr.user}<br>
+              State: ${pr.state}<br>
+              Created: ${pr.created_at}
+          `;
       ul.appendChild(li);
     });
 
@@ -173,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalPages = Math.ceil(pullRequests.length / perPage);
 
     if (totalPages <= 1) {
-      paginationContainer.innerHTML = ""; // Clear pagination if only one page
+      paginationContainer.innerHTML = "";
       return;
     }
 
@@ -232,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
     nextLi.appendChild(nextLink);
     ul.appendChild(nextLi);
 
-    paginationContainer.innerHTML = ""; // Clear previous pagination
+    paginationContainer.innerHTML = "";
     paginationContainer.appendChild(ul);
     updateActivePage(ul);
 
